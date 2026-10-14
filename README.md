@@ -1,255 +1,326 @@
-# Yanna-feelingss
-import math as m
-import random as r
-import turtle as t
-import tkinter.font as tkf
+#Yannas Feelings for You Digital
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Love Heart</title>
+<style>
+* {
+box-sizing: border-box;
+}
+body, html {
+margin: 0;
+padding: 0;
+width: 100%;
+height: 100%;
+overflow: hidden;
+background-color: #060208;
+display: flex;
+justify-content: center;
+align-items: center;
+font-family: "Arial", sans-serif;
+}
+#canvas-container {
+position: relative;
+width: 800px;
+height: 800px;
+max-width: 100vw;
+max-height: 100vh;
+}
+canvas {
+width: 100%;
+height: 100%;
+background-color: #060208;
+display: block;
+}
+</style>
+</head>
+<body>
 
-SC = 21
-OY = 20
-DURATION = 10
-TICK = 16
-ANIM = 42
-LIFT = 34
-GAP = 7
-SIZES = (9, 10, 11, 12)
-FONT = "Arial"
-BG = "#060208"
+<div id="canvas-container">
+<canvas id="heartCanvas" width="800" height="800"></canvas>
+</div>
 
-s = t.Screen()
-s.setup(800, 800)
-s.bgcolor(BG)
-s.title("Love Heart")
-s.tracer(0)
+<script>
+const canvas = document.getElementById('heartCanvas');
+const ctx = canvas.getContext('2d');
 
-cv = s.getcanvas()
-rng = r.Random(11)
+// Constants adapted from Python configuration
+const SC = 21;
+const OY = 20;
+const TICK = 16;
+const ANIM_FRAMES = 42;
+const LIFT = 34;
+const GAP = 7;
+const SIZES =; // Slightly adjusted for canvas rendering readability
+const BG_COLOR = "#060208";
+const FLASH_COLOR =; // (1.0, 0.78, 0.78)
 
-PHRASES = [
-    "Iyanna really", "really", "really", "really", "really", "really", "really", "really", "really", "really", 
-    "really", "really", "really", "really", "really", "really", "really", "really", "really", "really", 
-    "really", "really", "really", "really", "really", "really", "really", "really", "really", "really", 
-    "really", "really", "really", "really", "really", "really", "really", "really", "really", "really", 
-    "really", "really", "really", "really", "really", "really", "really", "really", "really", "really", 
-    "really", "likes P"
-]
+// Base Colors
+const wine =; // (0.58, 0.0, 0.09)
+const crimson =; // (0.90, 0.05, 0.14)
+const blood =; // (0.98, 0.10, 0.16)
 
-_fonts = {}
+const PHRASES = [
+"Iyanna really", "really", "really", "really", "really", "really", "really", "really",
+"really", "really", "really", "really", "really", "really", "really", "really", "really",
+"really", "really", "really", "really", "really", "really", "really", "really", "really",
+"really", "really", "really", "really", "really", "really", "really", "really", "really",
+"really", "really", "really", "really", "really", "really", "really", "really", "really",
+"really", "really", "really", "really", "really", "really", "really", "likes P"
+ ];
 
-def font_for(size):
-    if size not in _fonts:
-        _fonts[size] = tkf.Font(
-            root=cv, family=FONT, size=size, weight="bold"
-        )
-    return _fonts[size]
+// Simple Linear Congruential Generator to match Python's predictable random seed (11)
+class SeededRandom {
+constructor(seed) { this.seed = seed; }
+next() {
+this.seed = (this.seed * 9301 + 49297) % 233280;
+return this.seed / 233280;
+}
+uniform(min, max) { return min + this.next() * (max - min); }
+choice(arr) { return arr[Math.floor(this.next() * arr.length)]; }
+shuffle(arr) {
+for (let i = arr.length - 1; i > 0; i--) {
+const j = Math.floor(this.next() * (i + 1));
+[arr[i], arr[j]] = [arr[j], arr[i]];
+}
+return arr;
+}
+}
+const rng = new SeededRandom(11);
 
-def heart(a):
-    x = 16 * (m.sin(a) ** 3)
-    y = (
-        13 * m.cos(a)
-        - 5 * m.cos(2 * a)
-        - 2 * m.cos(3 * a)
-        - m.cos(4 * a)
-    )
-    return x * SC, y * SC + OY
+// Heart math formula
+function getHeartPoint(a) {
+const x = 16 * Math.pow(Math.sin(a), 3);
+const y = 13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a);
+return { x: x * SC + 400, y: 400 - (y * SC + OY) }; // Center on 800x800 canvas
+}
 
-def hx(c):
-    return "#%02x%02x%02x" % tuple(
-        int(max(0, min(1, v)) * 255) for v in c
-    )
+// Generate geometry
+const POLY = [];
+for (let i = 0; i < 720; i++) {
+POLY.push(getHeartPoint((2 * Math.PI * i) / 720));
+}
 
-def mix(a, b, k):
-    return tuple(p + (q - p) * k for p, q in zip(a, b))
+const EDGES = [];
+for (let i = 0; i < POLY.length; i++) {
+EDGES.push([POLY[i], POLY[(i + 1) % POLY.length]]);
+}
 
-def dim(c, k):
-    return tuple(v * k for v in c)
+const yValues = POLY.map(p => p.y);
+const YMAX = Math.max(...yValues);
+const YMIN = Math.min(...yValues);
+const CY = (YMAX + YMIN) / 2;
 
-POLY = [heart(2 * m.pi * i / 720) for i in range(720)]
-EDGES = list(zip(POLY, POLY[1:] + POLY[:1]))
-YMAX = max(p[1] for p in POLY)
-YMIN = min(p[1] for p in POLY)
-CY = (YMAX + YMIN) / 2
+function getSpans(y) {
+let xs = [];
+for (let [p1, p2] of EDGES) {
+if ((p1.y <= y && y < p2.y) || (p2.y <= y && y < p1.y)) {
+xs.push(p1.x + ((y - p1.y) * (p2.x - p1.x)) / (p2.y - p1.y));
+}
+}
+xs.sort((a, b) => a - b);
+let pairs = [];
+for (let i = 0; i < xs.length; i += 2) {
+if (xs[i+1] !== undefined) pairs.push([xs[i], xs[i+1]]);
+}
+return pairs;
+}
 
-def spans(y):
-    xs = []
-    for (x1, y1), (x2, y2) in EDGES:
-        if (y1 <= y < y2) or (y2 <= y < y1):
-            xs.append(x1 + (y - y1) * (x2 - x1) / (y2 - y1))
-    xs.sort()
-    return list(zip(xs[0::2], xs[1::2]))
+function intersect(A, B) {
+let out = [];
+for (let a of A) {
+for (let b of B) {
+let lo = Math.max(a[0], b[0]);
+let hi = Math.min(a[1], b[1]);
+if (hi - lo > 14) out.push([lo, hi]);
+}
+}
+return out;
+}
 
-def intersect(A, B):
-    out = []
-    for a in A:
-        for b in B:
-            lo, hi = max(a[0], b[0]), min(a[1], b[1])
-            if hi - lo > 14:
-                out.append((lo, hi))
-    return out
+let phraseQueue = [];
+function getNextPhrase() {
+if (phraseQueue.length === 0) {
+phraseQueue = rng.shuffle([...PHRASES]);
+}
+return phraseQueue.pop();
+}
 
-def phrase_cycle():
-    while True:
-        order = PHRASES[:]
-        rng.shuffle(order)
-        yield from order
+function mathDist(x, y) {
+const dx = (x - 400) / (16 * SC);
+const dy = (400 - y - OY) / (14.5 * SC);
+return Math.hypot(dx, dy);
+}
 
-def math_dist(x, y):
-    return m.hypot(x / (16 * SC), (y - CY) / (14.5 * SC))
+function mixColors(c1, c2, k) {
+return c1.map((v, i) => v + (c2[i] - v) * k);
+}
 
-def build():
-    cycle = phrase_cycle()
-    row_h = max(font_for(z).metrics("linespace") for z in SIZES) + 4
-    half = row_h / 2
-    placed = []
+function colorToHex(c) {
+return "#" + c.map(v => Math.floor(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+}
 
-    y = YMAX - half
-    while y > YMIN + half:
-        row = intersect(spans(y + half), spans(y - half))
+// Build phrase items matching Python pipeline layout
+let placed = [];
+const row_h = 16;
+const half = row_h / 2;
+let currY = YMIN + half;
 
-        for lo, hi in row:
-            lo += 4
-            hi -= 4
-            cur = lo + rng.uniform(0, 8)
-            line = []
+ctx.font = "bold 12px Arial"; // Base measurement context
 
-            while True:
-                fit = None
-                for _ in range(10):
-                    text = next(cycle)
-                    size = rng.choice(SIZES)
-                    w = font_for(size).measure(text)
-                    if cur + w <= hi:
-                        fit = (text, size, w)
-                        break
-                if not fit:
-                    break
-                text, size, w = fit
-                line.append([cur + w / 2, text, size, w])
-                cur += w + GAP
+while (currY < YMAX - half) {
+let row = intersect(getSpans(currY - half), getSpans(currY + half));
+for (let [lo, hi] of row) {
+lo += 4;
+hi -= 4;
+let cur = lo + rng.uniform(0, 8);
+let line = [];
 
-            if not line:
-                continue
+while (true) {
+let fit = null;
+for (let attempt = 0; attempt < 10; attempt++) {
+let text = getNextPhrase();
+let size = rng.choice(SIZES);
+ctx.font = bold ${size}px Arial`;
+let w = ctx.measureText(text).width;
+if (cur + w <= hi) {
+fit = { text, size, w };
+break;
+}
+}
+if (!fit) break;
+line.push({ x: cur + fit.w / 2, text: fit.text, size: fit.size, w: fit.w });
+cur += fit.w + GAP;
+}
+if (line.length === 0) continue;
+if (line.length > 1) {
+let left = hi - (line[line.length - 1].x + line[line.length - 1].w / 2);
+for (let i = 0; i < line.length; i++) {
+line[i].x += (left * i) / (line.length - 1);
+}
+} else {
+line[0].x = (lo + hi) / 2;
+}
+for (let i = 0; i < line.length; i++) {
+let edge = (i === 0 || i === line.length - 1);
+placed.push({ x: line[i].x, y: currY, text: line[i].text, size: line[i].size, edge: edge });
+}
+}
+currY += row_h;
+}
 
-            if len(line) > 1:
-                left = hi - (line[-1][0] + line[-1][3] / 2)
-                for i, it in enumerate(line):
-                    it[0] += left * i / (len(line) - 1)
-            else:
-                line[0][0] = (lo + hi) / 2
+// Assign dynamic coloration and partition processing order
+placed.forEach(p => {
+let rad = Math.min(1.0, mathDist(p.x, p.y));
+let base = mixColors(wine, crimson, 0.25 + 0.75 * rad);
+base = mixColors(base, blood, rng.uniform(0, 0.35) + (p.edge ? 0.3 : 0));
+p.color = base;
+p.rad = rad;
+p.f = 0;
+p.dx = rng.uniform(-10, 10);
+p.isSpawned = false;
+p.isFinished = false;
+p.shimmerTime = 0;
+});
 
-            for i, (x, text, size, w) in enumerate(line):
-                edge = i == 0 or i == len(line) - 1
-                placed.append(dict(x=x, y=y, text=text, size=size, edge=edge))
+let edges = placed.filter(p => p.edge);
+let inner = placed.filter(p => !p.edge);
+edges.sort((a, b) => (Math.atan2(a.x - 400, 400 - a.y - CY) % (2 * Math.PI)) - (Math.atan2(b.x - 400, 400 - b.y - CY) % (2 * Math.PI)));
+inner.sort((a, b) => (-a.rad + rng.uniform(0, 0.08)) - (-b.rad + rng.uniform(0, 0.08)));
 
-        y -= row_h
+const sortedItems = [...edges, ...inner];
 
-    wine = (0.58, 0.0, 0.09)
-    crimson = (0.90, 0.05, 0.14)
-    blood = (0.98, 0.10, 0.16)
-    for p in placed:
-        rad = min(1.0, math_dist(p["x"], p["y"]))
-        base = mix(wine, crimson, 0.25 + 0.75 * rad)
-        base = mix(base, blood, rng.uniform(0, 0.35) + (0.3 if p["edge"] else 0))
-        p["color"] = tuple(min(1, v) for v in base)
-        p["rad"] = rad
+let activeItems = [];
+let itemIndex = 0;
+const totalDurationMs = 10000;
+const ratePerFrame = sortedItems.length / (totalDurationMs / TICK);
+let acc = 0;
+let spawningActive = true;
 
-    edges = [p for p in placed if p["edge"]]
-    inner = [p for p in placed if not p["edge"]]
-    edges.sort(key=lambda p: m.atan2(p["x"], p["y"] - CY) % (2 * m.pi))
-    inner.sort(key=lambda p: -p["rad"] + rng.uniform(0, 0.08))
-    return edges + inner
+// Main render and loop engine
+function mainLoop() {
+ctx.fillStyle = BG_COLOR;
+ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-FLASH = (1.0, 0.78, 0.78)
-main_ids = []
-active = []
-tick_no = 0
+if (spawningActive) {
+acc += ratePerFrame;
+while (acc >= 1) {
+acc -= 1;
+if (itemIndex < sortedItems.length) {
+let p = sortedItems[itemIndex++];
+p.isSpawned = true;
+activeItems.push(p);
+} else {
+spawningActive = false;
+break;
+}
+}
+}
 
-def clamp(v):
-    return max(0.0, min(1.0, v))
+// Handle animation properties
+for (let i = activeItems.length - 1; i >= 0; i--) {
+let p = activeItems[i];
+p.f++;
+let u = Math.max(0, Math.min(1, p.f / ANIM_FRAMES));
+let e = 1 - Math.pow(1 - u, 3);
+let hover = (1 - e) * LIFT;
+let px = p.x + p.dx * (1 - e);
+let py = p.y + hover;
 
-def spawn(p):
-    x, y = p["x"], -p["y"]
-    size, text, c = p["size"], p["text"], p["color"]
-    font = (FONT, size, "bold")
-    big = (FONT, size + 1, "bold")
+if (u >= 1) {
+p.isFinished = true;
+activeItems.splice(i, 1);
+continue;
+}
 
-    shadow = cv.create_text(x + 2, y + 3, text=text, font=font, fill=BG)
-    halo = cv.create_text(x, y, text=text, font=big, fill=BG)
-    main = cv.create_text(x, y - LIFT, text=text, font=font, fill=BG)
+// Draw Drop Shadow
+ctx.font = bold${p.size}px Arial`;
+ctx.fillStyle = colorToHex(mixColors([6, 2, 8], mixColors([6, 2, 8], p.color, 0.30), e));
+ctx.fillText(p.text, px + 2, py + 3);
 
-    p.update(shadow=shadow, halo=halo, main=main,
-             f=0, dx=rng.uniform(-10, 10))
-    main_ids.append((main, c))
-    active.append(p)
+// Draw Halo Effect
+ctx.font = bold ${p.size + 1}px Arial`;
+ctx.fillStyle = colorToHex(mixColors([6, 2, 8], mixColors([6, 2, 8], p.color, 0.20), e * e));
+ctx.fillText(p.text, px, py);
 
-def animate(p):
-    p["f"] += 1
-    u = clamp(p["f"] / ANIM)
-    e = 1 - (1 - u) ** 3
-    c = p["color"]
-    x, y = p["x"], -p["y"]
-    hover = (1 - e) * LIFT
-    px = x + p["dx"] * (1 - e)
-    py = y - hover
+// Draw Main Text Frame Elements
+ctx.font = bold${p.size}px Arial`;
+let flashVal = 0.75 * Math.sin(Math.PI * Math.max(0, Math.min(1, (u - 0.55) / 0.45)));
+let baseTextCol = mixColors([6, 2, 8], p.color, Math.pow(e, 1.5));
 
-    cv.itemconfig(p["shadow"], fill=hx(mix(BGC, dim(c, 0.30), e)))
-    cv.itemconfig(p["halo"], fill=hx(mix(BGC, dim(c, 0.20), e * e)))
-    cv.coords(p["halo"], px, py)
-
-    flash = 0.75 * math_sin(clamp((u - 0.55) / 0.45))
-    col = mix(mix(BGC, c, e ** 1.5), FLASH, flash)
-    cv.itemconfig(p["main"], fill=hx(col))
-    cv.coords(p["main"], px, py)
-
-    if u >= 1:
-        cv.coords(p["halo"], x, y)
-        cv.coords(p["main"], x, y)
-        cv.itemconfig(p["main"], fill=hx(c))
-        return False
-    return True
-
-def math_sin(v):
-    return m.sin(m.pi * v)
-
-BGC = tuple(int(BG[i:i + 2], 16) / 255 for i in (1, 3, 5))
-ORDER = build()
-items = iter(ORDER)
-RATE = len(ORDER) / (DURATION * 1000 / TICK)
-acc = 0.0
-spawning = True
-
-def step():
-    global spawning, acc
-    if spawning:
-        acc += RATE
-        try:
-            while acc >= 1:
-                acc -= 1
-                spawn(next(items))
-        except StopIteration:
-            spawning = False
-
-    active[:] = [p for p in active if animate(p)]
-
-    if not spawning and not active:
-        shimmer()
-        return
-    cv.after(TICK, step)
-
-def _safe(i, c):
-    try:
-        cv.itemconfig(i, fill=hx(c))
-    except Exception:
-        pass
-
-def shimmer():
-    for _ in range(1):
-        i, c = rng.choice(main_ids)
-        _safe(i, mix(c, FLASH, 0.6))
-        cv.after(260, lambda i=i, c=c: _safe(i, c))
-    cv.after(140, shimmer)
-
-try:
-    cv.after(200, step)
-    t.done()
-except (t.Terminator, Exception):
-    pass
+let finalCol = mixColors(baseTextCol, FLASH_COLOR, flashVal);
+ctx.fillStyle = colorToHex(finalCol);
+ctx.fillText(p.text, px, py);
+}
+// Draw static completed phrases
+sortedItems.forEach(p => {
+if (p.isFinished) {
+ctx.font = bold ${p.size}px Arial;
+// Static shadow
+ctx.fillStyle = BG_COLOR;
+ctx.fillText(p.text, p.x + 2, p.y + 3);
+// Check active shimmer timer
+let renderColor = p.color;
+if (p.shimmerTime > 0) {
+p.shimmerTime -= TICK;
+renderColor = mixColors(p.color, FLASH_COLOR, 0.6);
+}
+ctx.fillStyle = colorToHex(renderColor);
+ctx.fillText(p.text, p.x, p.y);
+}
+});
+// Trigger persistent shimmer loops when drawing finishes
+if (!spawningActive && activeItems.length === 0) {
+if (Math.random() < 0.05) {
+let randomFinishedItem = sortedItems[Math.floor(Math.random() * sortedItems.length)];
+if (randomFinishedItem.isFinished) {
+randomFinishedItem.shimmerTime = 260;
+}
+}
+}
+setTimeout(mainLoop, TICK);
+}
+// Initialize Engine
+mainLoop();
